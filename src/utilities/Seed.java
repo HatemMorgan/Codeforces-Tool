@@ -10,6 +10,8 @@ import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.TreeMap;
 
 import org.json.simple.JSONArray;
@@ -19,82 +21,67 @@ import org.json.simple.parser.JSONParser;
 import models.Contest;
 import models.Contest.Row;
 import models.EnteredContest;
+import models.User;
 
 public class Seed {
-	// public static void seedUsers() throws IOException {
-	// Path path = Paths.get("data/users");
-	//
-	// // holds all users to be written to disk
-	// ArrayList<User> users = new ArrayList<User>();
-	// Path outDirPath = Paths.get("seed/users");
-	//
-	// Files.createDirectories(outDirPath);
-	//
-	// // iterate over users directory and transform each user to a simplified
-	// // version
-	// try (DirectoryStream<Path> dirStream = Files.newDirectoryStream(path)) {
-	// JSONParser parser = new JSONParser();
-	// dirStream.forEach(p -> {
-	// try {
-	// FileReader reader = new FileReader(p.toString() + "/rating.json");
-	// JSONArray contests = (JSONArray) parser.parse(reader);
-	// reader.close();
-	//
-	// reader = new FileReader(p.toString() + "/status.json");
-	// JSONArray submissions = (JSONArray) parser.parse(reader);
-	// reader.close();
-	//
-	// // parse a user
-	// User user = new User();
-	// ArrayList<Submission> userSubmissions = new ArrayList<Submission>();
-	//
-	// JSONObject submissionJson;
-	// Submission submission;
-	//
-	// for (Object o : submissions) {
-	// submissionJson = (JSONObject) o;
-	//
-	// if (!submissionJson.get("verdict").equals("OK"))
-	// continue;
-	//
-	// submission = new Submission();
-	// submission.setCreationTime((long)
-	// submissionJson.get("creationTimeSeconds"));
-	//
-	// userSubmissions.add(submission);
-	// }
-	//
-	// String handle = p.getFileName().toString();
-	// long rating = 1500;
-	// if (!contests.isEmpty())
-	// rating = (long) ((JSONObject) contests.get(contests.size() -
-	// 1)).get("newRating");
-	//
-	// user.setHandle(handle);
-	// user.setRating((int) rating);
-	// user.setSubmissions(userSubmissions);
-	//
-	// users.add(user);
-	//
-	// // create new file
-	// Path newFilePath = Paths.get(outDirPath + "/" + handle + ".json");
-	// Files.createFile(newFilePath);
-	// Files.write(newFilePath, new Gson().toJson(user).getBytes());
-	// } catch (Exception e) {
-	// e.printStackTrace();
-	// }
-	// });
-	// // sort in ascending order according to rating
-	// Collections.sort(users, (x, y) -> {
-	// return x.getRating() - y.getRating();
-	// });
-	//
-	// Path newFilePath = Paths.get("seed/allUsers.json");
-	// Files.createFile(newFilePath);
-	// Files.write(newFilePath, new Gson().toJson(users).getBytes());
-	// // serialize(users, "allUsers.json");
-	// }
-	// }
+	public static void seedUsersActivity() throws IOException {
+		Path path = Paths.get("data/users");
+
+		// holds all users to be written to disk
+		ArrayList<User> users = new ArrayList<User>();
+
+		// iterate over users directory and transform each user to a simplified version
+		try (DirectoryStream<Path> dirStream = Files.newDirectoryStream(path)) {
+			JSONParser parser = new JSONParser();
+			dirStream.forEach(p -> {
+				try {
+					FileReader reader = new FileReader(p.toString() + "/rating.json");
+					JSONArray contests = (JSONArray) parser.parse(reader);
+					reader.close();
+
+					reader = new FileReader(p.toString() + "/status.json");
+					JSONArray submissions = (JSONArray) parser.parse(reader);
+					reader.close();
+
+					// parse a user
+					ArrayList<models.User.Submission> userSubmissions = new ArrayList<models.User.Submission>();
+
+					JSONObject submissionJson;
+					models.User.Submission submission;
+
+					for (Object o : submissions) {
+						submissionJson = (JSONObject) o;
+
+						if (!submissionJson.get("verdict").equals("OK"))
+							continue;
+
+						long creationTime = (long) submissionJson.get("creationTimeSeconds");
+						submission = new models.User.Submission(creationTime);
+
+						userSubmissions.add(submission);
+					}
+
+					String handle = p.getFileName().toString();
+					int rating = 1500;
+					if (!contests.isEmpty())
+						rating = (int) ((long) ((JSONObject) contests.get(contests.size() - 1)).get("newRating"));
+
+					User user = new User(handle, rating, userSubmissions);
+					users.add(user);
+
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+			});
+
+			// sort in ascending order according to rating
+			Collections.sort(users, (x, y) -> {
+				return x.getRating() - y.getRating();
+			});
+		}
+		
+		serialize(users, "./data/filtered/users_activity");
+	}
 
 	public static void seedContests() throws IOException {
 		Path path = Paths.get("data/contests");
@@ -126,8 +113,9 @@ public class Seed {
 							int points = (int) ((long) row.get("points"));
 							int penalty = (int) ((long) row.get("penalty"));
 							int rank = (int) ((long) row.get("rank"));
-							String handle = (String) ((JSONObject) ((JSONArray) ((JSONObject) row.get("party")).get("members")).get(0)).get("handle");
-							
+							String handle = (String) ((JSONObject) ((JSONArray) ((JSONObject) row.get("party"))
+									.get("members")).get(0)).get("handle");
+
 							JSONArray submissionsJson = (JSONArray) row.get("problemResults");
 							models.Contest.Submission[] submissions = new models.Contest.Submission[submissionsJson
 									.size()];
@@ -140,7 +128,7 @@ public class Seed {
 
 								submissions[j] = new models.Contest.Submission(rejectedCount, problemPoints);
 							}
-							
+
 							rows[i] = new Row(points, penalty, rank, handle, submissions);
 						}
 
@@ -151,6 +139,7 @@ public class Seed {
 					e.printStackTrace();
 				}
 			});
+
 		}
 
 		serialize(tm, "./data/filtered/contests");
@@ -193,10 +182,11 @@ public class Seed {
 
 		serialize(tm, "./data/filtered/users_contests");
 	}
-	
+
 	public static void seed() throws IOException {
-		Seed.seedContests();
-		Seed.seedUsersContests();
+//		Seed.seedContests();
+//		Seed.seedUsersContests();
+		Seed.seedUsersActivity();
 	}
 
 	public static void serialize(Object o, String fileName) throws IOException {

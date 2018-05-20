@@ -18,7 +18,7 @@ public class Main {
 	}
 
 	public static void main(String[] args) throws IOException {
-		runTask2();
-//		seed();
+//		runTask2();
+		seed();
 	}
 }
