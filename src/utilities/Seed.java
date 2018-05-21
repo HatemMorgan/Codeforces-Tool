@@ -11,8 +11,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.TreeMap;
+import java.util.TreeSet;
 
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
@@ -21,6 +23,7 @@ import org.json.simple.parser.JSONParser;
 import models.Contest;
 import models.Contest.Row;
 import models.EnteredContest;
+import models.Problem;
 import models.User;
 
 public class Seed {
@@ -182,11 +185,106 @@ public class Seed {
 
 		serialize(tm, "./data/filtered/users_contests");
 	}
+	
+	private static TreeMap<String, Integer> constructProblemSolvedCount() throws IOException {
+		Path path = Paths.get("data/problems");
+		
+		TreeMap<String, Integer> problemSolvedCount = new TreeMap<>();
+		try (DirectoryStream<Path> dirStream = Files.newDirectoryStream(path)) {
+			JSONParser parser = new JSONParser();
+			try {
 
+				FileReader reader = new FileReader(path.toString() + "/problems.json");
+				JSONObject objJson = (JSONObject) parser.parse(reader);
+				reader.close();
+
+				JSONArray problemStatisticsJson = (JSONArray) objJson.get("problemStatistics");
+				
+				JSONObject problemStatisticJson;
+				for (int i = 0; i < problemStatisticsJson.size(); i++) {
+					problemStatisticJson = (JSONObject) problemStatisticsJson.get(i);
+					
+					String problemCode = ((long) problemStatisticJson.get("contestId")) + ((String) problemStatisticJson.get("index"));
+					int solvedCount = (int) ((long) problemStatisticJson.get("solvedCount"));
+					
+					problemSolvedCount.put(problemCode, solvedCount);
+				}
+				
+				return problemSolvedCount;
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+			
+			return null;
+		}
+		
+	}
+	
+	public static void seedUsersSubmissions() throws IOException {
+		TreeMap<String, Integer> problemSolvedCount = constructProblemSolvedCount();
+		if (problemSolvedCount == null) return;
+		
+		Path path = Paths.get("data/users");
+
+		// holds all problems for users to be written to disk
+		TreeMap<String, TreeMap<String, Problem>> tm = new TreeMap<>();
+
+		// iterate over users directory
+		try (DirectoryStream<Path> dirStream = Files.newDirectoryStream(path)) {
+			JSONParser parser = new JSONParser();
+			dirStream.forEach(p -> {
+				try {
+
+					FileReader reader = new FileReader(p.toString() + "/status.json");
+					JSONArray submissionsJson = (JSONArray) parser.parse(reader);
+					reader.close();
+
+					String handle = p.getFileName().toString();
+					
+					TreeMap<String, Problem> problemstm = new TreeMap<>();
+					JSONObject submissionJson, problemJson;
+					for (int i = 0; i < submissionsJson.size(); i++) {
+						submissionJson = (JSONObject) submissionsJson.get(i);
+						if (!submissionJson.get("verdict").equals("OK"))
+							continue;
+						
+						problemJson = (JSONObject) submissionJson.get("problem");
+						
+						if (!problemJson.containsKey("contestId") || !problemJson.containsKey("index"))
+							continue;
+							
+						String problemCode = ((long) problemJson.get("contestId")) + ((String) problemJson.get("index"));
+						if (!problemSolvedCount.containsKey(problemCode))
+							continue;
+						
+						int solvedCount = problemSolvedCount.get(problemCode);
+						JSONArray tagsJson = new JSONArray();
+						if (problemJson.containsKey("tags"))
+							tagsJson = (JSONArray) problemJson.get("tags");
+						TreeSet<String> tags = new TreeSet<>();
+						
+						for (int j = 0; j < tagsJson.size(); j++) 
+							tags.add((String) tagsJson.get(j));
+						
+						Problem problem = new Problem(problemCode, solvedCount, tags);
+						problemstm.put(problemCode, problem);
+					}
+					
+					tm.put(handle, problemstm);
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+			});
+		}
+
+		serialize(tm, "./data/filtered/users_general_submissions");
+	}
+	
 	public static void seed() throws IOException {
 //		Seed.seedContests();
 //		Seed.seedUsersContests();
-		Seed.seedUsersActivity();
+//		Seed.seedUsersActivity();
+		Seed.seedUsersSubmissions();
 	}
 
 	public static void serialize(Object o, String fileName) throws IOException {

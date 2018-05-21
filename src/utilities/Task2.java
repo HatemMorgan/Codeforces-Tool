@@ -129,7 +129,6 @@ public class Task2 {
 	private static XYDataset createDataset(HashMap<Integer, Integer> hm) {
 		XYSeriesCollection dataset = new XYSeriesCollection();
 
-		// Boys (Age,weight) series
 		XYSeries series = new XYSeries("Rank Change");
 		for (Entry<Integer, Integer> entry : hm.entrySet())
 			series.add(entry.getKey(), entry.getValue());
