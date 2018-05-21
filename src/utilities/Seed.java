@@ -11,7 +11,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.TreeMap;
 import java.util.TreeSet;
@@ -220,7 +219,7 @@ public class Seed {
 		
 	}
 	
-	public static void seedUsersSubmissions() throws IOException {
+	public static void seedUsersProblems() throws IOException {
 		TreeMap<String, Integer> problemSolvedCount = constructProblemSolvedCount();
 		if (problemSolvedCount == null) return;
 		
@@ -277,14 +276,14 @@ public class Seed {
 			});
 		}
 
-		serialize(tm, "./data/filtered/users_general_submissions");
+		serialize(tm, "./data/filtered/users_problems");
 	}
 	
 	public static void seed() throws IOException {
 //		Seed.seedContests();
 //		Seed.seedUsersContests();
 //		Seed.seedUsersActivity();
-		Seed.seedUsersSubmissions();
+		Seed.seedUsersProblems();
 	}
 
 	public static void serialize(Object o, String fileName) throws IOException {
