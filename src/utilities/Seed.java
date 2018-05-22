@@ -23,6 +23,7 @@ import models.Contest;
 import models.Contest.Row;
 import models.EnteredContest;
 import models.Problem;
+import models.Solution;
 import models.User;
 
 public class Seed {
@@ -185,10 +186,10 @@ public class Seed {
 		serialize(tm, "./data/filtered/users_contests");
 	}
 	
-	private static TreeMap<String, Integer> constructProblemSolvedCount() throws IOException {
+	private static TreeMap<String, Problem> constructProblems() throws IOException {
 		Path path = Paths.get("data/problems");
 		
-		TreeMap<String, Integer> problemSolvedCount = new TreeMap<>();
+		TreeMap<String, Problem> problemSolvedCount = new TreeMap<>();
 		try (DirectoryStream<Path> dirStream = Files.newDirectoryStream(path)) {
 			JSONParser parser = new JSONParser();
 			try {
@@ -198,15 +199,29 @@ public class Seed {
 				reader.close();
 
 				JSONArray problemStatisticsJson = (JSONArray) objJson.get("problemStatistics");
+				JSONArray problemsJson = (JSONArray) objJson.get("problems");
 				
-				JSONObject problemStatisticJson;
+				JSONObject problemStatisticJson, problemJson;
 				for (int i = 0; i < problemStatisticsJson.size(); i++) {
 					problemStatisticJson = (JSONObject) problemStatisticsJson.get(i);
+					problemJson = (JSONObject) problemsJson.get(i);
 					
 					String problemCode = ((long) problemStatisticJson.get("contestId")) + ((String) problemStatisticJson.get("index"));
 					int solvedCount = (int) ((long) problemStatisticJson.get("solvedCount"));
 					
-					problemSolvedCount.put(problemCode, solvedCount);
+					int points = 1000;
+					if (problemJson.containsKey("points"))
+						points = (int) ((long) problemJson.get("points"));
+					
+					JSONArray tagsJson = new JSONArray();
+					if (problemJson.containsKey("tags"))
+						tagsJson = (JSONArray) problemJson.get("tags");
+					TreeSet<String> tags = new TreeSet<>();
+					
+					for (int j = 0; j < tagsJson.size(); j++) 
+						tags.add((String) tagsJson.get(j));
+					
+					problemSolvedCount.put(problemCode, new Problem(problemCode, solvedCount, tags, points));
 				}
 				
 				return problemSolvedCount;
@@ -219,14 +234,14 @@ public class Seed {
 		
 	}
 	
-	public static void seedUsersProblems() throws IOException {
-		TreeMap<String, Integer> problemSolvedCount = constructProblemSolvedCount();
-		if (problemSolvedCount == null) return;
+	public static void seedUsersSolutions() throws IOException {
+		TreeMap<String, Problem> constructedProblems = constructProblems();
+		if (constructedProblems == null) return;
 		
 		Path path = Paths.get("data/users");
 
 		// holds all problems for users to be written to disk
-		TreeMap<String, TreeMap<String, Problem>> tm = new TreeMap<>();
+		TreeMap<String, TreeMap<String, Solution>> tm = new TreeMap<>();
 
 		// iterate over users directory
 		try (DirectoryStream<Path> dirStream = Files.newDirectoryStream(path)) {
@@ -240,7 +255,7 @@ public class Seed {
 
 					String handle = p.getFileName().toString();
 					
-					TreeMap<String, Problem> problemstm = new TreeMap<>();
+					TreeMap<String, Solution> solutionstm = new TreeMap<>();
 					JSONObject submissionJson, problemJson;
 					for (int i = 0; i < submissionsJson.size(); i++) {
 						submissionJson = (JSONObject) submissionsJson.get(i);
@@ -253,37 +268,29 @@ public class Seed {
 							continue;
 							
 						String problemCode = ((long) problemJson.get("contestId")) + ((String) problemJson.get("index"));
-						if (!problemSolvedCount.containsKey(problemCode))
+						if (!constructedProblems.containsKey(problemCode))
 							continue;
 						
-						int solvedCount = problemSolvedCount.get(problemCode);
-						JSONArray tagsJson = new JSONArray();
-						if (problemJson.containsKey("tags"))
-							tagsJson = (JSONArray) problemJson.get("tags");
-						TreeSet<String> tags = new TreeSet<>();
-						
-						for (int j = 0; j < tagsJson.size(); j++) 
-							tags.add((String) tagsJson.get(j));
-						
-						Problem problem = new Problem(problemCode, solvedCount, tags);
-						problemstm.put(problemCode, problem);
+						Problem problem = constructedProblems.get(problemCode);
+						long solvedTime = (long) submissionJson.get("creationTimeSeconds");
+						solutionstm.put(problemCode, new Solution(solvedTime, problem));
 					}
 					
-					tm.put(handle, problemstm);
+					tm.put(handle, solutionstm);
 				} catch (Exception e) {
 					e.printStackTrace();
 				}
 			});
 		}
 
-		serialize(tm, "./data/filtered/users_problems");
+		serialize(tm, "./data/filtered/users_solutions");
 	}
 	
 	public static void seed() throws IOException {
 //		Seed.seedContests();
 //		Seed.seedUsersContests();
 //		Seed.seedUsersActivity();
-		Seed.seedUsersProblems();
+		Seed.seedUsersSolutions();
 	}
 
 	public static void serialize(Object o, String fileName) throws IOException {

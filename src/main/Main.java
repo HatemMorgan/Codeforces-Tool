@@ -2,13 +2,17 @@ package main;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.LinkedList;
+import java.util.Queue;
 
 import utilities.Seed;
 import utilities.Task2;
 import utilities.Task3;
 
 public class Main {
-
+	static ArrayList<Integer>[] adjList;
+	
 	private static void runTask2() {
 		Task2.prepare();
 		System.out.println("Done preparing...");
@@ -28,6 +32,9 @@ public class Main {
 	public static void main(String[] args) throws IOException {
 //		runTask2();
 //		runTask3();
-		seed();
+//		seed();
+//		TreeMap<String, TreeMap<String, Solution>> tm = (TreeMap<String, TreeMap<String, Solution>>) Seed.deserialize("./data/filtered/users_solutions");
+//		System.out.println(tm.get("Noureldin_Khaled"));
 	}
+	
 }
