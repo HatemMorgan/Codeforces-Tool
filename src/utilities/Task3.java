@@ -1,7 +1,6 @@
 package utilities;
 
 import java.io.FileNotFoundException;
-import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.PriorityQueue;
 
@@ -49,21 +48,14 @@ public class Task3 {
 	public static ArrayList<String> getActiveUsers(int t1, int t2, int rLo, int rHi, int cnt) {
 		Pair usersRange = ratingBSearch(rLo, rHi);
 
-		 System.out.println(usersRange.lowRange);
-		 System.out.println(usersRange.hightRange);
-
 		User currUser;
 		PriorityQueue<UserActivity> queue = new PriorityQueue<UserActivity>();
 		for (int i = usersRange.lowRange; i < usersRange.hightRange; ++i) {
 			currUser = users.get(i);
 			Pair range = timeBSearch(currUser.getSubmissions(), t1, t2);
 
-			// System.out.println(range.lowRange);
-			// System.out.println(range.hightRange);
 			queue.add(new UserActivity(currUser.getHandle(), range.hightRange - range.lowRange + 1));
 		}
-
-		// System.out.println(queue);
 
 		ArrayList<String> res = new ArrayList<String>();
 		for (int i = 0; i < cnt && !queue.isEmpty(); ++i)
@@ -84,9 +76,7 @@ public class Task3 {
 			if (users.get(mid).getRating() < rLo)
 				low = mid + 1;
 			else {
-				// if (users.get(mid).getRating() == rLo)
 				lowAns = mid;
-
 				high = mid - 1;
 			}
 		}
@@ -100,9 +90,7 @@ public class Task3 {
 			if (users.get(mid).getRating() > rHi)
 				high = mid - 1;
 			else {
-				// if (users.get(mid).getRating() == rHi)
 				highAns = mid;
-
 				low = mid + 1;
 			}
 		}
@@ -135,9 +123,7 @@ public class Task3 {
 			if (submissions.get(mid).creationTime < t1)
 				high = mid - 1;
 			else {
-				// if (submissions.get(mid).creationTime == t2)
 				highAns = mid;
-
 				low = mid + 1;
 			}
 		}

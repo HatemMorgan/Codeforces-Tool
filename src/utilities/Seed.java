@@ -13,6 +13,7 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.TreeMap;
+import java.util.TreeSet;
 
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
@@ -21,6 +22,8 @@ import org.json.simple.parser.JSONParser;
 import models.Contest;
 import models.Contest.Row;
 import models.EnteredContest;
+import models.Problem;
+import models.Solution;
 import models.User;
 
 public class Seed {
@@ -182,11 +185,112 @@ public class Seed {
 
 		serialize(tm, "./data/filtered/users_contests");
 	}
+	
+	private static TreeMap<String, Problem> constructProblems() throws IOException {
+		Path path = Paths.get("data/problems");
+		
+		TreeMap<String, Problem> problemSolvedCount = new TreeMap<>();
+		try (DirectoryStream<Path> dirStream = Files.newDirectoryStream(path)) {
+			JSONParser parser = new JSONParser();
+			try {
 
+				FileReader reader = new FileReader(path.toString() + "/problems.json");
+				JSONObject objJson = (JSONObject) parser.parse(reader);
+				reader.close();
+
+				JSONArray problemStatisticsJson = (JSONArray) objJson.get("problemStatistics");
+				JSONArray problemsJson = (JSONArray) objJson.get("problems");
+				
+				JSONObject problemStatisticJson, problemJson;
+				for (int i = 0; i < problemStatisticsJson.size(); i++) {
+					problemStatisticJson = (JSONObject) problemStatisticsJson.get(i);
+					problemJson = (JSONObject) problemsJson.get(i);
+					
+					String problemCode = ((long) problemStatisticJson.get("contestId")) + ((String) problemStatisticJson.get("index"));
+					int solvedCount = (int) ((long) problemStatisticJson.get("solvedCount"));
+					
+					int points = 1000;
+					if (problemJson.containsKey("points"))
+						points = (int) ((long) problemJson.get("points"));
+					
+					JSONArray tagsJson = new JSONArray();
+					if (problemJson.containsKey("tags"))
+						tagsJson = (JSONArray) problemJson.get("tags");
+					TreeSet<String> tags = new TreeSet<>();
+					
+					for (int j = 0; j < tagsJson.size(); j++) 
+						tags.add((String) tagsJson.get(j));
+					
+					problemSolvedCount.put(problemCode, new Problem(problemCode, solvedCount, tags, points));
+				}
+				
+				return problemSolvedCount;
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+			
+			return null;
+		}
+		
+	}
+	
+	public static void seedUsersSolutions() throws IOException {
+		TreeMap<String, Problem> constructedProblems = constructProblems();
+		if (constructedProblems == null) return;
+		
+		Path path = Paths.get("data/users");
+
+		// holds all problems for users to be written to disk
+		TreeMap<String, TreeMap<String, Solution>> tm = new TreeMap<>();
+
+		// iterate over users directory
+		try (DirectoryStream<Path> dirStream = Files.newDirectoryStream(path)) {
+			JSONParser parser = new JSONParser();
+			dirStream.forEach(p -> {
+				try {
+
+					FileReader reader = new FileReader(p.toString() + "/status.json");
+					JSONArray submissionsJson = (JSONArray) parser.parse(reader);
+					reader.close();
+
+					String handle = p.getFileName().toString();
+					
+					TreeMap<String, Solution> solutionstm = new TreeMap<>();
+					JSONObject submissionJson, problemJson;
+					for (int i = 0; i < submissionsJson.size(); i++) {
+						submissionJson = (JSONObject) submissionsJson.get(i);
+						if (!submissionJson.get("verdict").equals("OK"))
+							continue;
+						
+						problemJson = (JSONObject) submissionJson.get("problem");
+						
+						if (!problemJson.containsKey("contestId") || !problemJson.containsKey("index"))
+							continue;
+							
+						String problemCode = ((long) problemJson.get("contestId")) + ((String) problemJson.get("index"));
+						if (!constructedProblems.containsKey(problemCode))
+							continue;
+						
+						Problem problem = constructedProblems.get(problemCode);
+						long solvedTime = (long) submissionJson.get("creationTimeSeconds");
+						solutionstm.put(problemCode, new Solution(solvedTime, problem));
+					}
+					
+					tm.put(handle, solutionstm);
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+			});
+		}
+
+		serialize(tm, "./data/filtered/users_solutions");
+	}
+	
 	public static void seed() throws IOException {
 //		Seed.seedContests();
 //		Seed.seedUsersContests();
-		Seed.seedUsersActivity();
+//		Seed.seedUsersActivity();
+		Seed.seedUsersSolutions();
 	}
 
 	public static void serialize(Object o, String fileName) throws IOException {
