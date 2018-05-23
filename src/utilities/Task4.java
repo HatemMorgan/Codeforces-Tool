@@ -24,15 +24,15 @@ public class Task4 {
 	static ArrayList<Problem> problems;
 
 	public static void prepare() throws FileNotFoundException {
-		users_problems = (TreeMap<String, TreeMap<String, Solution>>) Seed.deserialize("./data/filtered/users_problems");
+		users_problems = (TreeMap<String, TreeMap<String, Solution>>) Seed.deserialize("./data/filtered/users_solutions");
 	}
 
 	public static ArrayList<ArrayList<String>> selectProblems(String[] handles, String tag, int minSolved,
 			int maxSolved, int p, int cnt) {
 		problems = getProblems(handles, tag, minSolved, maxSolved);
-
+		
 		constructGraph(handles, p);
-
+		
 		tarjanSCC();
 		
 		dag = new ArrayList[SCC];
@@ -49,6 +49,7 @@ public class Task4 {
 			importance[SCCIndex[u]] += problems.get(u).points;
 		
 		ArrayList<Integer> SCCOrder = Kahn();
+		if (SCCOrder == null) return new ArrayList<>();
 		
 		ArrayList<ArrayList<String>> res = new ArrayList<>();
 		for (int component : SCCOrder) {
@@ -65,12 +66,12 @@ public class Task4 {
 	}
 	
 	private static ArrayList<Integer> Kahn() {
-		int N = adjlist.length;
+		int N = dag.length;
 
 		int[] inDegree = new int[N];
 		ArrayList<Integer> sortedArray = new ArrayList<Integer>(N);
 		for(int i = 0; i < N; ++i)
-			for(int v: adjlist[i])
+			for(int v: dag[i])
 				++inDegree[v];
 
 		PriorityQueue<Integer> roots = new PriorityQueue<>(new Comparator<Integer>() {
@@ -96,7 +97,7 @@ public class Task4 {
 		while(!roots.isEmpty()) {
 			int u = roots.remove();
 			sortedArray.add(u);
-			for(int v: adjlist[u])
+			for(int v: dag[u])
 				if(--inDegree[v] == 0)
 					roots.add(v);
 		}
@@ -120,8 +121,8 @@ public class Task4 {
 
 			for (Entry<String, Solution> entry : userSolutions.entrySet()) {
 				Problem problem = entry.getValue().problem;
-				if (problem.solvedCount >= minSolved && problem.solvedCount <= maxSolved && tag != null
-						&& problem.tags.contains(tag))
+				if (problem.solvedCount >= minSolved && problem.solvedCount <= maxSolved && (tag == null
+						|| problem.tags.contains(tag)))
 					ts.add(problem);
 			}
 		}
@@ -151,6 +152,7 @@ public class Task4 {
 		}
 
 		double percentage = 1.0 * c / handles.length;
+		percentage *= 100.0;
 		return percentage >= p;
 	}
 
